@@ -20,7 +20,7 @@ Since the `.gitignore` is heavily restricted to prevent tracking large CFX binar
 ├── automate_workflow.py         # Main script (from this repo)
 ├── GEKO_Ejector_LP4000.def      # Master mesh and physics definition
 └── GEKO_Ejector_LP4000.res      # Master restart file (for initialization)
-
+```
 
 ## 🛠️ Usage Guide
 
