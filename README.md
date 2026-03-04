@@ -1,5 +1,5 @@
-```markdown
-# GEKO Turbulence Model Sweeper for CFX Ejector Simulations
+
+## GEKO Turbulence Model Sweeper for CFX Ejector Simulations
 
 This repository contains a lightweight, native-Python automation pipeline designed to streamline computational fluid dynamics (CFD) ejector simulations in **Ansys CFX**. The tool automates the generation of a parametric sweep matrix for Generalized Eddy-Viscosity (GEKO) turbulence model coefficients ($C_{MIX}$ and $C_{JET}$), and seamlessly submits these runs to an HPC cluster.
 
@@ -20,7 +20,7 @@ Since the `.gitignore` is heavily restricted to prevent tracking large CFX binar
 ├── automate_workflow.py         # Main script (from this repo)
 ├── GEKO_Ejector_LP4000.def      # Master mesh and physics definition
 └── GEKO_Ejector_LP4000.res      # Master restart file (for initialization)
-```
+
 
 ## 🛠️ Usage Guide
 
