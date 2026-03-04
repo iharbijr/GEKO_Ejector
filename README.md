@@ -1,10 +1,6 @@
 ```markdown
 # GEKO Turbulence Model Sweeper for CFX Ejector Simulations
 
-![Python Version](https://img.shields.io/badge/Python-3.x-blue.svg)
-![Ansys CFX](https://img.shields.io/badge/Ansys-CFX_2024R1-orange.svg)
-![SLURM](https://img.shields.io/badge/Scheduler-SLURM-green.svg)
-
 This repository contains a lightweight, native-Python automation pipeline designed to streamline computational fluid dynamics (CFD) ejector simulations in **Ansys CFX**. The tool automates the generation of a parametric sweep matrix for Generalized Eddy-Viscosity (GEKO) turbulence model coefficients ($C_{MIX}$ and $C_{JET}$), and seamlessly submits these runs to an HPC cluster.
 
 ## 🚀 Key Features
