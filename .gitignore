@@ -1,0 +1,13 @@
+# 1. Ignore everything in this directory and all subdirectories
+*
+
+# 2. Do not ignore directories (needed so Git can traverse into them if needed later)
+!*/
+
+# 3. Do not ignore the .gitignore file itself
+!.gitignore
+
+# 4. Do not ignore your main Python script
+!GEKO_Pipeline.py
+!Ejector_LP4000.def
+!Week 36 & 37.xlsx
