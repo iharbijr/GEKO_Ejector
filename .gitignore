@@ -9,5 +9,4 @@
 
 # 4. Do not ignore your main Python script
 !GEKO_Pipeline.py
-!Ejector_LP4000.def
 !Week 36 & 37.xlsx
