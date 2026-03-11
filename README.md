@@ -1,79 +1,46 @@
+# Automated CFD Pipeline for GEKO Turbulence Tuning
 
-## GEKO Turbulence Model Sweeper for CFX Ejector Simulations
+This repository contains a fully automated, cross-platform pipeline designed to orchestrate Ansys CFX simulations for ejector performance tuning. The workflow utilizes the Generalized $k-\omega$ (GEKO) turbulence model to fine-tune mixing and jet shear layer coefficients ($C_{mix}$ and $C_{jet}$) against experimental entrainment ratios.
 
-This repository contains a lightweight, native-Python automation pipeline designed to streamline computational fluid dynamics (CFD) ejector simulations in **Ansys CFX**. The tool automates the generation of a parametric sweep matrix for Generalized Eddy-Viscosity (GEKO) turbulence model coefficients ($C_{MIX}$ and $C_{JET}$), and seamlessly submits these runs to an HPC cluster.
+## Architecture: Hybrid Windows-to-Linux Mapped Drive
+The pipeline is specifically engineered for environments where local development occurs on a Windows machine, but heavy computation is executed on a Linux-based HPC cluster. 
 
-## 🚀 Key Features
+By mapping the HPC network drive to Windows (e.g., `Z:\`), Python executes locally to dynamically generate all required Linux bash scripts, Ansys Command Language (CCL) files, and CFD-Post session files (`.cse`) directly onto the cluster's file system.
 
-- **No Dependency Hell:** Built entirely using Python's standard library (`os`, `sys`, `pathlib`). No need to install Pandas, openpyxl, or worry about virtual environments on restricted HPC clusters.
-- **Smart File Management:** Uses absolute path referencing for heavy `.def` and `.res` master files. It completely eliminates file duplication and cluster storage quota bloat.
-- **Dynamic CCL Injection:** Automatically generates CFX Command Language (`.ccl`) files to overwrite thermodynamic boundary conditions (Pressure, Enthalpy, Temperature) and turbulence settings at runtime.
-- **Interactive SLURM Integration:** Intercepts the user before generation to prompt for the desired HPC queue (e.g., *express, normal, batch*), injecting the correct partition directly into the batch scripts.
-- **Hot-Start Capability:** Includes a toggle to initialize all sweep variations from a common, pre-converged master `.res` file to drastically cut down on solver iterations.
+## Pipeline Workflow
 
-## 📂 Expected Directory Structure
+The script provides an interactive terminal menu with three distinct phases:
 
-Since the `.gitignore` is heavily restricted to prevent tracking large CFX binaries, you must set up your HPC workspace like this before running the script:
+### Phase 1: Pre-Processing & Script Generation
+Executes entirely on Windows to prepare the simulation matrix.
+- Generates a nested directory structure based on the matrix of $C_{mix}$ and $C_{jet}$ values.
+- Injects parametric thermodynamic boundary conditions and GEKO coefficients into `.ccl` templates.
+- Writes SLURM `run.sh` files configured for parallel MPI execution.
+- Generates a master `01_submit_all_solvers.sh` script to bulk-submit all cases to the cluster.
 
-```text
-/Your_Workspace_Folder
-├── automate_workflow.py         # Main script (from this repo)
-├── GEKO_Ejector_LP4000.def      # Master mesh and physics definition
-└── GEKO_Ejector_LP4000.res      # Master restart file (for initialization)
-```
+### Phase 2: HPC Execution & Monitor Extraction
+Executed sequentially on the Linux Login Node (via SSH/MobaXterm).
+- Once the solvers finish, Python scans the mapped drive to verify completed `.res` files.
+- Generates `02_extract_monitors.sh`, which uses `cfx5mondata` to rapidly dump transient monitor data (mass flow rates) into `.csv` files.
+- Generates `03_run_all_post_local.sh`, which sequentially launches CFD-Post in batch mode on the login node to render contour images based on the `.cse` templates.
 
-## 🛠️ Usage Guide
+### Phase 3: Statistical Post-Processing (Pandas)
+Executes entirely on Windows, leveraging the local Python environment.
+- **Data Ingestion:** Reads all extracted `monitors.csv` files.
+- **Trailing Statistics:** Analyzes the final 1,000 iterations to compute Mean, Standard Deviation, and Coefficient of Variation (CV%).
+- **Stability Flagging:** Automatically flags variables and runs as "Oscillatory" or "Converged" based on a strict 1.0% CV threshold.
+- **Entrainment Ratio:** Automatically computes the ratio of Suction Nozzle to Motive Nozzle mass flow.
+- **Visualizations:** Uses `matplotlib` to generate and save `convergence_plot.png` in every run folder, plotting mass flows against accumulated timesteps with a trailing average marker.
+- **Data Aggregation:** Compiles all statistical data into a master `Master_Stats.csv` file for rapid engineering evaluation.
 
-### 1. Configure the Script
-Open `automate_workflow.py` in your preferred text editor (`nano`, `vim`, etc.) and adjust the configuration block at the top of the file:
+## Prerequisites
+* **Windows (Local):** Python 3.8+, `pandas`, `numpy`, `matplotlib`.
+* **Linux (HPC):** Ansys CFX 24.1 (`cfx5solve`, `cfx5mondata`), Ansys CFD-Post, SLURM workload manager.
 
-```python
-# --- TOGGLES ---
-SUBMIT_JOBS = True          # Set to False to dry-run (generate folders without submitting)
-USE_INITIAL_FILE = True     # Set to False to start from scratch without .res interpolation
+## Usage
+1. Configure `WINDOWS_DRIVE_PATH` and `LINUX_CLUSTER_PATH` at the top of the script.
+2. Run `python axSymm_Ejector_Pipeline.py`.
+3. Follow the 3-step prompt, toggling between Windows execution and MobaXterm bash executions as directed by the terminal output.
 
-# --- SWEEP MATRIX ---
-c_mix_values = [0.0, 1.0, 1.5]
-c_jet_values = [0.5, 0.9, 1.5]
-
-# --- THERMODYNAMICS ---
-exp_data = {
-    "motive_p": 115.99814E5,
-    "motive_h": 249695.4, 
-    "motive_t": 296.88335,
-    "suction_p": 34.9823E5,
-    "suction_h": 430810.4,
-    "suction_t": 273.29169,
-    "outlet_p": 40.426818E5
-}
-```
-
-### 2. Execute
-Load your cluster's Python module (if required) and execute the script:
-```bash
-module load python
-python3 automate_workflow.py
-```
-
-### 3. Select Queue
-The terminal will display an interactive menu. Select the number corresponding to your desired HPC partition:
-```text
-=== HPC Queue Selection ===
-Available Partitions:
-  1. express      (Max Time: 12:00:00)
-  2. normal       (Max Time: 5-00:00:00)
-  3. batch        (Max Time: 14-00:00:00)
-  4. validation   (Max Time: 2:00:00)
-
-Enter the number of the partition you want to use: 
-```
-
-The script will automatically generate the directory tree, write the custom `.ccl` and `.sh` scripts, and submit the jobs to SLURM. 
-
-## 🔜 Next Steps / Roadmap
-- **Phase 2 (Post-Processing):** Implementing the `post_process_results()` function to automate the parsing of CFX `.out` files, extracting the final `OPMFRInSN` scalar (suction mass flow), and exporting to a master CSV.
-- **Phase 3 (Batch Data Loading):** Scaling the single-point dictionary to iterate through a full experimental matrix via built-in CSV reading.
-
-## 🤝 Contributing
-If you are contributing to this repository, note that the `.gitignore` is heavily restricted to prevent tracking of CFX artifacts. If you add a new Python module, you will need to add an allowlist exception (`!new_script.py`) to the `.gitignore`.
-```
+---
+*Note: Negative GEKO coefficients are fully supported and are automatically parsed via regex, converting dashes to underscores in directory names to prevent Linux pathing errors.*
